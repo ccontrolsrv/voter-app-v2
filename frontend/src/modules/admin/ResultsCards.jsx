@@ -37,13 +37,13 @@ export default function ResultsCards({ assemblyInfo, totalEligible, totalVotesCa
       {/* Card 2: Total de Votantes */}
       <Card className="border-t-4 border-t-blue-600 shadow-md">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg text-blue-800">👥 Votantes Elegíveis</CardTitle>
+          <CardTitle className="text-lg text-blue-800">👥 Cadastrados para Votação direta</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold text-blue-900">{totalEligible || 0}</div>
-          <div className="text-sm text-blue-600 mt-1">moradores aptos a votar</div>
+          <div className="text-sm text-blue-600 mt-1">Moradores aptos a votar / Portando procurações</div>
           <div className="text-xs text-blue-500 mt-2">
-            🏢 Total de unidades elegíveis
+            🏢 Total de unidades elegíveis a votar de forma direta
           </div>
         </CardContent>
       </Card>
@@ -51,7 +51,7 @@ export default function ResultsCards({ assemblyInfo, totalEligible, totalVotesCa
       {/* Card 3: Participação */}
       <Card className="border-t-4 border-t-blue-500 shadow-md">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg text-blue-800">🗳️ Total de Votos</CardTitle>
+          <CardTitle className="text-lg text-blue-800">🗳️ Total de Votos Válidos</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-bold text-blue-900">{totalVotesCast || 0}</div>

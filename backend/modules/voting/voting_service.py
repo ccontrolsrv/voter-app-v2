@@ -57,23 +57,21 @@ def get_active_assembly(condominium_id, voter_email):
     Retorna a assembleia com status 'active' ou 'closed'
     """
     assemblies_ref = db.collection(f'condominiums/{condominium_id}/assemblies')
-    
-    # Busca por assembleias com status 'active' ou 'closed'
     docs = assemblies_ref.stream()
     
-    assembly_data = None
     for doc in docs:
         data = doc.to_dict()
         status = data.get('status', 'inactive')
         
         # Aceita apenas 'active' ou 'closed'
         if status in ['active', 'closed']:
+            # Prepara os dados básicos da assembleia
             assembly_data = {
                 'number': doc.id,
                 'name': data.get('name'),
                 'date': data.get('date'),
                 'status': status,
-                'has_voted': False
+                'has_voted': False  # Valor padrão
             }
             
             # Busca o informativo
@@ -82,16 +80,16 @@ def get_active_assembly(condominium_id, voter_email):
             if info_doc.exists:
                 assembly_data['informative_text'] = info_doc.to_dict().get('informative_text', '')
             
-            # Verifica se o votante já votou
+            # ⭐ VERIFICA SE O VOTANTE JÁ VOTOU NESTA ASSEMBLEIA
             vote_ref = db.collection(f'condominiums/{condominium_id}/assemblies/{doc.id}/votes').document(voter_email)
             assembly_data['has_voted'] = vote_ref.get().exists
             
-            break  # Pega a primeira assembleia disponível
+            # Log para debug (será visível nos logs do GAE)
+            print(f"Assembly: {doc.id}, Voter: {voter_email}, has_voted: {assembly_data['has_voted']}")
+            
+            return {'success': True, 'assembly': assembly_data}
     
-    if not assembly_data:
-        return {'success': False, 'error': 'Nenhuma assembleia disponível no momento'}
-    
-    return {'success': True, 'assembly': assembly_data}
+    return {'success': False, 'error': 'Nenhuma assembleia disponível no momento'}
 
 def get_voting_weight(condominium_id, voter_email):
     """
@@ -119,6 +117,13 @@ def get_voting_weight(condominium_id, voter_email):
         'weight': weight,
         'proxy_count': proxy_count
     }
+
+def has_voted_in_assembly(condominium_id, assembly_number, voter_email):
+    """
+    Verifica se um votante já votou em uma assembleia específica
+    """
+    vote_ref = db.collection(f'condominiums/{condominium_id}/assemblies/{assembly_number}/votes').document(voter_email)
+    return {'hasVoted': vote_ref.get().exists}
 
 def register_vote(condominium_id, assembly_number, voter, votes, voting_weight):
     """

@@ -16,5 +16,13 @@
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
+  },
+  "registries": {
+    "@perpetuity": {
+      "url": "https://your-registry.com/r/{name}",
+      "headers": {
+        "Authorization": "Bearer ${SHADCN_API_KEY}"
+      }
+    }
   }
 }

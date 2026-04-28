@@ -103,3 +103,20 @@ export async function getAssemblyStatus(condominiumId, assemblyNumber) {
     return { success: false, error: error.message, status: 'unknown' }
   }
 }
+// frontend/src/modules/voting/votingService.js
+
+/**
+ * Verifica se o votante já votou em uma assembleia específica
+ */
+export async function hasUserVotedInAssembly(condominiumId, assemblyNumber, voterEmail) {
+  try {
+    const response = await fetch(
+      `${API_URL}/public/voter/has-voted?condominiumId=${condominiumId}&assemblyNumber=${assemblyNumber}&email=${encodeURIComponent(voterEmail)}`
+    )
+    const data = await response.json()
+    return { success: true, hasVoted: data.hasVoted }
+  } catch (error) {
+    console.error('Erro ao verificar voto:', error)
+    return { success: false, hasVoted: false, error: error.message }
+  }
+}

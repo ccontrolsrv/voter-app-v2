@@ -2,24 +2,15 @@
  * Passo 4: Confirmação e Encerramento
  * 
  * Exibe mensagem de agradecimento e limpa a sessão do votante
- * O botão leva o usuário de volta à tela de votação (com resultados)
  * NÃO afeta o Firebase Auth (admin continua logado)
  */
 
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 
 export default function VotingConfirmation({ voter, assembly, onFinish }) {
-  const navigate = useNavigate()
   
-  // Fallback seguro caso assembly seja undefined
-  const assemblyName = assembly?.name || 'Assembleia'
-  const assemblyNumber = assembly?.number || '-'
-  const voterName = voter?.name || 'Votante'
-  const voterEmail = voter?.email || 'não informado'
-
   useEffect(() => {
     // ============================================
     // REMOVE APENAS OS DADOS DO VOTANTE DO sessionStorage
@@ -31,17 +22,6 @@ export default function VotingConfirmation({ voter, assembly, onFinish }) {
     sessionStorage.removeItem('voterCpf')
     sessionStorage.removeItem('voterApartment')
   }, [])
-
-  const handleBackToVoting = () => {
-    // Fecha o modal de confirmação e volta para a tela de votação
-    // A função onFinish deve redirecionar para a tela de opções do votante
-    if (onFinish) {
-      onFinish()
-    } else {
-      // Fallback: navegar diretamente para a rota de votação
-      navigate('/vote')
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 flex items-center justify-center">
@@ -74,12 +54,12 @@ export default function VotingConfirmation({ voter, assembly, onFinish }) {
                 Sua opinião é muito importante.
               </p>
               <p className="text-gray-400 text-xs mt-2">
-                Clique no botão abaixo para acompanhar os resultados em tempo real.
+                Você será redirecionado para a tela inicial.
               </p>
             </div>
             
-            <Button onClick={handleBackToVoting} className="w-full mt-4">
-              📊 Acompanhar Resultados
+            <Button onClick={onFinish} className="w-full mt-4">
+              Voltar para a Tela Inicial
             </Button>
           </CardContent>
         </Card>

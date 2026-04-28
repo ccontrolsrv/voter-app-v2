@@ -2,16 +2,20 @@
  * Tabela detalhada de votos por item
  * Exibe cada votante, seu voto, apartamento e peso do voto
  * Destaca a opção vencedora em cada item
+ * Inclui botão para exportar resultados em PDF
  */
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '../../components/ui/table'
 import { Button } from '../../components/ui/button'
-import { ChevronDown, ChevronUp, Trophy } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trophy, FileText } from 'lucide-react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
-export default function ElectionResultsTable({ votesByItem }) {
+export default function ElectionResultsTable({ votesByItem, assemblyInfo }) {
   const [expandedItems, setExpandedItems] = useState({})
+  const tableRef = useRef(null)
 
   const toggleItemExpand = (itemId) => {
     setExpandedItems(prev => ({
@@ -24,7 +28,6 @@ export default function ElectionResultsTable({ votesByItem }) {
     if (itemType === 'approve_reject') {
       return voteValue === 'approve' ? '✅ Aprovar' : '❌ Reprovar'
     }
-    // Para múltipla escolha, tenta encontrar o label da opção
     const option = options.find(opt => opt.id === voteValue || opt.id === voteValue)
     return option ? option.label : voteValue
   }
@@ -44,7 +47,6 @@ export default function ElectionResultsTable({ votesByItem }) {
       return null
     }
     
-    // Encontra a opção com maior peso (não apenas contagem)
     let winningOption = null
     let maxWeight = -1
     
@@ -64,6 +66,89 @@ export default function ElectionResultsTable({ votesByItem }) {
     return (weight / totalWeight * 100).toFixed(1)
   }
 
+  // Função para gerar PDF
+  const generatePDF = () => {
+    const doc = new jsPDF()
+    let yPosition = 20
+
+    // Título
+    doc.setFontSize(18)
+    doc.setTextColor(40, 40, 100)
+    doc.text('Relatório de Resultados da Votação', 14, yPosition)
+    yPosition += 10
+
+    // Informações da Assembleia
+    doc.setFontSize(12)
+    doc.setTextColor(80, 80, 80)
+    if (assemblyInfo) {
+      doc.text(`Assembleia: ${assemblyInfo.name || 'Não informado'}`, 14, yPosition)
+      yPosition += 7
+      doc.text(`Número: ${assemblyInfo.number || '-'}`, 14, yPosition)
+      yPosition += 7
+      if (assemblyInfo.date) {
+        doc.text(`Data: ${new Date(assemblyInfo.date).toLocaleDateString('pt-BR')}`, 14, yPosition)
+        yPosition += 10
+      }
+    }
+
+    // Para cada item
+    Object.values(votesByItem).forEach((item, itemIndex) => {
+      // Verificar se cabe na página
+      if (yPosition > 250) {
+        doc.addPage()
+        yPosition = 20
+      }
+
+      const winningOption = getWinningOption(item)
+
+      // Título do item
+      doc.setFontSize(14)
+      doc.setTextColor(40, 40, 100)
+      doc.text(`Item ${item.item_order}: ${item.item_description}`, 14, yPosition)
+      yPosition += 8
+
+      // Resumo do vencedor
+      if (winningOption) {
+        doc.setFontSize(11)
+        doc.setTextColor(180, 140, 0)
+        doc.text(`🏆 Vencedor: ${winningOption.option} (${winningOption.weight} votos)`, 14, yPosition)
+        yPosition += 8
+      }
+
+      doc.setTextColor(80, 80, 80)
+      doc.setFontSize(10)
+      doc.text(`Total de votos: ${item.total_votes} | Peso total: ${item.total_weight} votos`, 14, yPosition)
+      yPosition += 10
+
+      // Tabela de votos - usando autoTable importado
+      const tableData = item.votes.map(vote => [
+        vote.voter_name,
+        vote.apartment,
+        vote.voter_email,
+        vote.vote,
+        vote.voting_weight.toString()
+      ])
+
+      const tableHeaders = [['Morador', 'Apartamento', 'Email', 'Voto', 'Peso']]
+      
+      // ✅ Usar autoTable corretamente
+      autoTable(doc, {
+        startY: yPosition,
+        head: tableHeaders,
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 10 },
+        bodyStyles: { fontSize: 9 },
+        margin: { left: 14, right: 14 },
+      })
+
+      yPosition = doc.lastAutoTable.finalY + 15
+    })
+
+    // Salvar PDF
+    doc.save('resultados_votacao.pdf')
+  }
+
   if (!votesByItem || Object.keys(votesByItem).length === 0) {
     return (
       <Card>
@@ -75,8 +160,14 @@ export default function ElectionResultsTable({ votesByItem }) {
   }
 
   return (
-    <div className="space-y-6">
-      <h3 className="text-xl font-semibold text-gray-700">📋 Detalhamento de Votos por Item</h3>
+    <div className="space-y-6" ref={tableRef}>
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold text-gray-700">📋 Detalhamento de Votos por Item</h3>
+        <Button onClick={generatePDF} className="bg-blue-600 hover:bg-blue-700">
+          <FileText className="w-4 h-4 mr-2" />
+          Exportar PDF
+        </Button>
+      </div>
       
       {Object.values(votesByItem).map((item) => {
         const isExpanded = expandedItems[item.item_id]
@@ -146,7 +237,6 @@ export default function ElectionResultsTable({ votesByItem }) {
                               </span>
                             </div>
                           </div>
-                          {/* Barra de progresso */}
                           <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                             <div 
                               className={`h-2 rounded-full transition-all duration-500 ${

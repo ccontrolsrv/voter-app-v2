@@ -121,3 +121,17 @@ def voter_register_vote():
         data.get('votingWeight', 1)
     )
     return jsonify(result)
+
+@voting_bp.route('/public/voter/has-voted', methods=['GET'])
+def voter_has_voted():
+    """Verifica se o votante já votou em uma assembleia"""
+    condominium_id = request.args.get('condominiumId')
+    assembly_number = request.args.get('assemblyNumber')
+    voter_email = request.args.get('email')
+    
+    if not all([condominium_id, assembly_number, voter_email]):
+        return jsonify({'success': False, 'error': 'Parâmetros incompletos'}), 400
+    
+    from .voting_service import has_voted_in_assembly
+    result = has_voted_in_assembly(condominium_id, assembly_number, voter_email)
+    return jsonify({'success': True, 'hasVoted': result['hasVoted']})

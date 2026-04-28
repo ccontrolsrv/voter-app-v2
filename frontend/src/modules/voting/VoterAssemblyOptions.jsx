@@ -1,14 +1,12 @@
-/**
- * Tela de opções para o votante após o login
- * Exibe duas opções sempre visíveis:
- * 1 - Votar (habilitado apenas se assembleia estiver ATIVA e votante não votou)
- * 2 - Ver Resultados (habilitado apenas se assembleia estiver ENCERRADA)
- * 
- * Quando desabilitadas, mostra explicação do motivo
- */
+// frontend/src/modules/voting/VoterAssemblyOptions.jsx
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
+import { Alert, AlertDescription } from '../../components/ui/alert'
+import { getElectionResults } from '../../services/adminApi'
+import { hasUserVotedInAssembly } from './votingService'
+import ElectionResultsChart from '../admin/ElectionResultsChart'
 
 export default function VoterAssemblyOptions({ 
   voter, 
@@ -16,16 +14,74 @@ export default function VoterAssemblyOptions({
   votingWeight, 
   condominiumId, 
   onVote, 
-  onViewResults, 
   onBack 
 }) {
-  
+  const [results, setResults] = useState(null)
+  const [loadingResults, setLoadingResults] = useState(false)
+  const [error, setError] = useState('')
+  const [hasVoted, setHasVoted] = useState(false)
+  const [checkingVote, setCheckingVote] = useState(true)
+
+  // Verifica o status do voto diretamente no backend
+  useEffect(() => {
+    const checkVoteStatus = async () => {
+      if (!assembly?.number || !condominiumId || !voter?.email) {
+        setCheckingVote(false)
+        return
+      }
+      
+      try {
+        const result = await hasUserVotedInAssembly(condominiumId, assembly.number, voter.email)
+        console.log('Status do voto:', result)
+        if (result.success) {
+          setHasVoted(result.hasVoted)
+        }
+      } catch (err) {
+        console.error('Erro ao verificar status do voto:', err)
+      } finally {
+        setCheckingVote(false)
+      }
+    }
+    
+    checkVoteStatus()
+  }, [assembly?.number, condominiumId, voter?.email])
+
   // Logs para debug
   console.log('=== VoterAssemblyOptions ===')
   console.log('Assembly recebido:', assembly)
   console.log('Status da assembleia:', assembly?.status)
-  console.log('Votante já votou?', assembly?.has_voted)
-  
+  console.log('hasVoted (buscado):', hasVoted)
+
+  // Carrega resultados sempre que a assembleia mudar
+  useEffect(() => {
+    if (assembly?.number && condominiumId) {
+      loadResults()
+      
+      const interval = setInterval(loadResults, 10000)
+      return () => clearInterval(interval)
+    }
+  }, [assembly?.number, condominiumId])
+
+  const loadResults = async () => {
+    if (!assembly?.number) return
+    
+    setLoadingResults(true)
+    setError('')
+    
+    try {
+      const result = await getElectionResults(condominiumId, assembly.number)
+      if (result.success) {
+        setResults(result)
+      } else {
+        setError(result.error || 'Erro ao carregar resultados')
+      }
+    } catch (err) {
+      setError('Erro ao carregar resultados')
+    } finally {
+      setLoadingResults(false)
+    }
+  }
+
   // Verifica se os dados da assembleia existem
   if (!assembly) {
     return (
@@ -39,30 +95,11 @@ export default function VoterAssemblyOptions({
       </div>
     )
   }
-  
-  // Determina quais opções estão disponíveis
+
+  // Determina se o votante pode votar
   const isActive = assembly.status === 'active'
-  const isClosed = assembly.status === 'closed'
-  const hasVoted = assembly.has_voted === true
-  
-  // Botões: habilitados apenas nas condições corretas
-  const voteEnabled = isActive && !hasVoted
-  const resultsEnabled = isClosed
-  
-  // Mensagens explicativas para botões desabilitados
-  const getVoteDisabledReason = () => {
-    if (hasVoted) return '❌ Você já votou nesta assembleia'
-    if (!isActive && !isClosed) return '⏳ Assembleia ainda não foi iniciada'
-    if (!isActive) return '🔒 Votação encerrada - apenas visualização de resultados disponível'
-    return ''
-  }
-  
-  const getResultsDisabledReason = () => {
-    if (!isClosed && isActive) return '📊 Resultados serão publicados após o encerramento da votação'
-    if (!isClosed && !isActive) return '⏳ Aguarde o início e encerramento da votação para ver os resultados'
-    return ''
-  }
-  
+  const canVote = isActive && !hasVoted && !checkingVote
+
   // Formata a data
   const formatDate = (dateStr) => {
     if (!dateStr) return null
@@ -72,14 +109,24 @@ export default function VoterAssemblyOptions({
       return dateStr
     }
   }
-  
+
   const assemblyDate = formatDate(assembly.date)
-  
+
+  if (checkingVote) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-500">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 py-8 px-4">
-      <div className="max-w-md mx-auto">
+      <div className="max-w-2xl mx-auto">
         
-        {/* Botão voltar */}
         <Button variant="ghost" onClick={onBack} className="mb-4">
           ← Voltar para login
         </Button>
@@ -107,8 +154,7 @@ export default function VoterAssemblyOptions({
                 <p>
                   <strong>Status:</strong> 
                   {isActive && <span className="ml-2 text-green-600 font-medium">🟢 VOTAÇÃO ABERTA</span>}
-                  {isClosed && <span className="ml-2 text-gray-600 font-medium">🔴 VOTAÇÃO ENCERRADA</span>}
-                  {!isActive && !isClosed && <span className="ml-2 text-yellow-600">🟡 AGUARDANDO INÍCIO</span>}
+                  {!isActive && <span className="ml-2 text-gray-600 font-medium">🔴 VOTAÇÃO ENCERRADA</span>}
                 </p>
                 {hasVoted && (
                   <p className="text-yellow-600 text-sm mt-2">
@@ -127,6 +173,44 @@ export default function VoterAssemblyOptions({
               </div>
             </div>
 
+            {/* Botão de Votar - aparece apenas se puder votar */}
+            {canVote && (
+              <div className="space-y-1">
+                <Button 
+                  onClick={onVote} 
+                  className="w-full py-6 text-lg font-semibold bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+                  size="lg"
+                >
+                  🗳️ VOTAR NESTA ASSEMBLEIA
+                </Button>
+                <p className="text-xs text-center text-green-600">
+                  ✅ Você pode votar agora! A votação está aberta.
+                </p>
+              </div>
+            )}
+
+            {hasVoted && (
+              <div className="text-center py-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <p className="text-yellow-700 font-medium">
+                  ✅ Você já votou nesta assembleia!
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Seu voto já foi registrado. Os resultados são atualizados automaticamente.
+                </p>
+              </div>
+            )}
+
+            {!isActive && !hasVoted && (
+              <div className="text-center py-3 bg-gray-100 rounded-lg">
+                <p className="text-gray-600 font-medium">
+                  ⏳ Votação encerrada
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  A votação foi encerrada pelo administrador. Confira os resultados abaixo.
+                </p>
+              </div>
+            )}
+
             {/* Informativo da Assembleia */}
             {assembly.informative_text && (
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -137,77 +221,54 @@ export default function VoterAssemblyOptions({
               </div>
             )}
 
-            {/* OPÇÕES - Título */}
-            <div className="text-center">
-              <h3 className="font-semibold text-gray-700">O que você deseja fazer?</h3>
-              <p className="text-xs text-gray-400 mt-1">
-                Escolha uma das opções abaixo
-              </p>
-            </div>
+            {/* RESULTADOS - SEMPRE VISÍVEIS */}
+            <div className="border-t pt-4">
+              <h3 className="font-semibold text-gray-700 flex items-center gap-2 mb-4">
+                <span>📊</span> Resultados da Votação
+                {!loadingResults && results && (
+                  <span className="text-xs text-gray-400 ml-2">(atualizado automaticamente)</span>
+                )}
+              </h3>
 
-            {/* Botão 1: Votar */}
-            <div className="space-y-1">
-              <Button 
-                onClick={onVote} 
-                className={`w-full py-6 text-lg font-semibold transition-all ${
-                  voteEnabled 
-                    ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-                disabled={!voteEnabled}
-                size="lg"
-              >
-                🗳️ VOTAR NESTA ASSEMBLEIA
-              </Button>
-              {!voteEnabled && (
-                <p className="text-xs text-center text-gray-400">
-                  {getVoteDisabledReason()}
-                </p>
+              {loadingResults && !results && (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-gray-500">Carregando resultados...</span>
+                </div>
               )}
-              {voteEnabled && (
-                <p className="text-xs text-center text-green-600">
-                  ✅ Você pode votar agora! A votação está aberta.
-                </p>
-              )}
-            </div>
 
-            {/* Botão 2: Ver Resultados */}
-            <div className="space-y-1">
-              <Button 
-                onClick={onViewResults} 
-                variant="outline"
-                className={`w-full py-6 text-lg font-semibold transition-all ${
-                  resultsEnabled 
-                    ? 'border-blue-500 text-blue-600 hover:bg-blue-50 cursor-pointer' 
-                    : 'border-gray-300 text-gray-400 cursor-not-allowed bg-gray-50'
-                }`}
-                disabled={!resultsEnabled}
-                size="lg"
-              >
-                📊 VER RESULTADOS DA VOTAÇÃO
-              </Button>
-              {!resultsEnabled && (
-                <p className="text-xs text-center text-gray-400">
-                  {getResultsDisabledReason()}
-                </p>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-              {resultsEnabled && (
-                <p className="text-xs text-center text-blue-600">
-                  📈 Os resultados já estão disponíveis para consulta!
-                </p>
+
+              {results && results.items_results && results.items_results.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-blue-50 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-blue-800">{results.total_eligible_voters}</div>
+                      <div className="text-xs text-blue-600">Cadastrados para Votação direta</div>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-green-800">{results.total_votes_cast}</div>
+                      <div className="text-xs text-green-600">Total de Votos - Inclui Procurações</div>
+                    </div>
+                  </div>
+
+                  {results.items_results.map((item, idx) => (
+                    <ElectionResultsChart key={item.item_id} item={item} itemNumber={idx + 1} />
+                  ))}
+                </div>
+              ) : (
+                !loadingResults && (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhum resultado disponível ainda.
+                  </div>
+                )
               )}
             </div>
             
-            {/* Explicação adicional sobre o comportamento */}
-            <div className="bg-gray-100 p-3 rounded-lg">
-              <p className="text-xs text-gray-500 text-center">
-                ℹ️ <strong>Como funciona:</strong> Durante a votação, apenas o botão "VOTAR" está disponível.
-                Após o encerramento da assembleia pelo administrador, os resultados são publicados
-                e o botão "VER RESULTADOS" é liberado.
-              </p>
-            </div>
-            
-            {/* Rodapé */}
             <div className="text-center pt-2 border-t">
               <p className="text-xs text-gray-400">
                 Sistema de Votação Eletrônica - Voto seguro e auditável

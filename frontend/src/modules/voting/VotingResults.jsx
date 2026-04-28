@@ -69,11 +69,11 @@ export default function VotingResults({ assembly, condominiumId, onBack }) {
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-blue-50 p-3 rounded-lg text-center">
                     <div className="text-2xl font-bold text-blue-800">{results.total_eligible_voters}</div>
-                    <div className="text-xs text-blue-600">Votantes Elegíveis</div>
+                    <div className="text-xs text-blue-600">Moradores aptos a votar</div>
                   </div>
                   <div className="bg-green-50 p-3 rounded-lg text-center">
                     <div className="text-2xl font-bold text-green-800">{results.total_votes_cast}</div>
-                    <div className="text-xs text-green-600">Votos Registrados</div>
+                    <div className="text-xs text-green-600">Total de votos registrados-inclui procurações</div>
                   </div>
                 </div>
                 

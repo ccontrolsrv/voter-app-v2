@@ -293,7 +293,10 @@ export default function ReportsDashboard() {
 
           {/* ABA DE TABELA DETALHADA */}
           {activeReportTab === 'table' && detailedVotes && (
-            <ElectionResultsTable votesByItem={detailedVotes} />
+            <ElectionResultsTable 
+              votesByItem={detailedVotes} 
+              assemblyInfo={assemblyInfo} 
+            />
           )}
           
           {activeReportTab === 'table' && !detailedVotes && !loadingResults && (

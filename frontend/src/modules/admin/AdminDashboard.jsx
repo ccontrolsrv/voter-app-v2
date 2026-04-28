@@ -24,6 +24,8 @@ import ProxiesList from './ProxiesList'
 import AssemblyManager from './AssemblyManager'
 import ReportsDashboard from './ReportsDashboard'
 import { BarChart3 } from 'lucide-react'
+import QRCodeGenerator from './QRCodeGenerator'
+import { QrCode } from 'lucide-react'  // Adicione o ícone
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -86,7 +88,8 @@ export default function AdminDashboard() {
     { id: 'list-residents', label: 'Listar Residentes', icon: Users, description: 'Ver todos os moradores' },
     { id: 'list-proxies', label: 'Listar Procurações', icon: ClipboardList, description: 'Ver todas as procurações' },
     { id: 'voting-items', label: 'Votações', icon: Settings, description: 'Gerenciar votações e itens' },
-    { id: 'reports', label: '📊 Relatórios', icon: BarChart3, description: 'Resultados das votações' } 
+    { id: 'reports', label: '📊 Relatórios', icon: BarChart3, description: 'Resultados das votações' },
+    { id: 'qrcode', label: 'QR Code', icon: QrCode, description: 'Gerar QR Code para votação' } 
   ]
 
   const renderContent = () => {
@@ -103,6 +106,8 @@ export default function AdminDashboard() {
         return <AssemblyManager />
       case 'reports':
         return <ReportsDashboard />
+      case 'qrcode':
+        return <QRCodeGenerator />
       default:
         return <UploadVoters onSuccess={() => setActiveTab('list-residents')} />
     }
